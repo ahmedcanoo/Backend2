@@ -66,7 +66,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//InsertAdminUser()
 	router := mux.NewRouter()
 	//User
 	router.HandleFunc("/api/register", RegisterUser).Methods("POST")
@@ -103,22 +102,6 @@ func main() {
 	)
 
 	log.Fatal(http.ListenAndServe(":8001", corsHandler(router)))
-}
-func InsertAdminUser() {
-	admin := Admin{
-		Name:     "admin",
-		Email:    "admin@yahoo.com",
-		Password: "admin",
-		Role:     "admin",
-	}
-
-	collection := client.Database("myapp").Collection("users")
-	_, err := collection.InsertOne(context.TODO(), admin)
-	if err != nil {
-		log.Fatal("Failed to insert admin user:", err)
-	} else {
-		log.Println("Admin user inserted successfully")
-	}
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -583,28 +566,32 @@ func UpdateOrderStatusByCourier(w http.ResponseWriter, r *http.Request) {
 }
 
 // ADMIN Features
+// Admin login handler
 func LoginAdmin(w http.ResponseWriter, r *http.Request) {
-	var admin User
-	err := json.NewDecoder(r.Body).Decode(&admin)
+	var adminLogin Admin
+	err := json.NewDecoder(r.Body).Decode(&adminLogin)
 	if err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
+	// Check if the email exists and the password matches
 	collection := client.Database("myapp").Collection("users")
 
-	var existingAdmin User
-	err = collection.FindOne(context.TODO(), bson.M{"email": admin.Email, "role": "admin"}).Decode(&existingAdmin)
+	var existingAdmin Admin
+	err = collection.FindOne(context.TODO(), bson.M{"email": adminLogin.Email, "role": "admin"}).Decode(&existingAdmin)
 	if err != nil {
 		http.Error(w, "Admin not found", http.StatusUnauthorized)
 		return
 	}
 
-	if existingAdmin.Password != admin.Password {
+	// Check if password matches
+	if existingAdmin.Password != adminLogin.Password {
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
 
+	// Successful login
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{
 		"adminId": existingAdmin.ID.Hex(),
@@ -612,6 +599,7 @@ func LoginAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(response)
 }
+
 func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 	collection := client.Database("myapp").Collection("orders")
 
